@@ -1,4 +1,4 @@
-import { DndContext } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, DragMoveEvent } from "@dnd-kit/core";
 import "./App.css";
 import { VideoDropzone } from "./components/Dropzone";
 import { Timeline } from "./components/Timeline";
@@ -22,72 +22,94 @@ function App() {
 
   if (loadingFFmpeg) return <div>Loading...</div>;
 
-  return (
-    <DndContext
-      onDragMove={(e) => {
+  const handleDragMove = (e: DragMoveEvent) => {
+    const clipId = e.active.id.toString().split("-")[1];
+    setDraggingClipId(clipId);
+  };
+
+  const handleDragEnd = async (e: DragEndEvent) => {
+    console.log(e);
+    /* Drop over Track Creator */
+    if (e.over?.id.toString().includes("track-creator")) {
+      const index = e.over.id.toString().split("-")[2];
+      const newTrackId = addTrack(index);
+
+      if (e.active.id.toString().includes("clip")) {
         const clipId = e.active.id.toString().split("-")[1];
-        setDraggingClipId(clipId);
-      }}
-      onDragEnd={async (e) => {
-        if (e.over?.id.toString().includes("track-creator")) {
-          const index = e.over.id.toString().split("-")[2];
-          const newTrackId = addTrack(index);
+        updateClip(clipId, {
+          trackId: newTrackId,
+        });
+      }
 
-          if (e.active.id.toString().includes("clip")) {
-            const clipId = e.active.id.toString().split("-")[1];
-            updateClip(clipId, {
-              trackId: newTrackId,
-            });
-          }
+      if (e.active.id.toString().includes("file")) {
+        const fileId = e.active.id.toString().split("-")[1];
+        const videoFile = videoFiles.find((f) => f.id === fileId);
+        if (!videoFile) return;
 
-          if (e.active.id.toString().includes("file")) {
-            const fileId = e.active.id.toString().split("-")[1];
-            const videoFile = videoFiles.find((f) => f.id === fileId);
-            if (!videoFile) return;
+        const clipId = addClip(newTrackId, fileId);
 
-            const clipId = addClip(newTrackId, fileId);
+        const thumbnails = await getVideoThumbnails(
+          ffmpegRef.current,
+          videoFile.file,
+          videoFile.duration,
+          pixelsPerSecond
+        );
+        updateClip(clipId, {
+          thumbnails,
+          loadingThumbnails: false,
+        });
+      }
 
-            const thumbnails = await getVideoThumbnails(
-              ffmpegRef.current,
-              videoFile.file,
-              videoFile.duration,
-              pixelsPerSecond
-            );
-            updateClip(clipId, {
-              thumbnails,
-              loadingThumbnails: false,
-            });
-          }
+      cleanupTracks();
+      return;
+    }
 
+    /* Drop over Track */
+    if (e.over?.id.toString().includes("track")) {
+      const trackId = e.over.id.toString().split("-")[1];
+      if (e.active.id.toString().includes("clip")) {
+        const clipId = e.active.id.toString().split("-")[1];
+        const clip = clips.find((c) => c.id === clipId);
+
+        if (!clip) return;
+
+        const newOffsetTime = clip?.offsetTime + e.delta.x / pixelsPerSecond;
+
+        updateClip(clipId, {
+          trackId,
+          offsetTime: newOffsetTime > 0 ? newOffsetTime : 0,
+        });
+
+        if (trackId !== clip.trackId) {
           cleanupTracks();
-          return;
         }
+      }
 
-        if (e.active.id.toString().includes("clip")) {
-          let newTrackId = null;
-          if (e.over?.id.toString().includes("track")) {
-            newTrackId = e.over.id.toString().split("-")[1];
-          }
-          const clipId = e.active.id.toString().split("-")[1];
-          const clip = clips.find((c) => c.id === clipId);
+      if (e.active.id.toString().includes("file")) {
+        const fileId = e.active.id.toString().split("-")[1];
+        const videoFile = videoFiles.find((f) => f.id === fileId);
+        if (!videoFile) return;
 
-          if (!clip) return;
-          const newOffsetTime = clip?.offsetTime + e.delta.x / pixelsPerSecond;
+        const clipId = addClip(trackId, fileId);
 
-          updateClip(clipId, {
-            ...clip,
-            offsetTime: newOffsetTime > 0 ? newOffsetTime : 0,
-            ...(newTrackId ? { trackId: newTrackId } : {}),
-          });
+        const thumbnails = await getVideoThumbnails(
+          ffmpegRef.current,
+          videoFile.file,
+          videoFile.duration,
+          pixelsPerSecond
+        );
+        updateClip(clipId, {
+          thumbnails,
+          loadingThumbnails: false,
+        });
+      }
+    }
 
-          if (newTrackId) {
-            cleanupTracks();
-          }
-        }
+    setDraggingClipId(null);
+  };
 
-        setDraggingClipId(null);
-      }}
-    >
+  return (
+    <DndContext onDragMove={handleDragMove} onDragEnd={handleDragEnd}>
       <div className="w-screen h-screen flex flex-col">
         <div className="flex-1 flex flex-col">
           <h1 className="text-4xl font-bold">Coding Test Video Editor</h1>

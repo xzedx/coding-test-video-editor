@@ -1,9 +1,9 @@
-import { VideoFileData } from "@/store/timeline";
+import { VideoFileDataState } from "@/store/timeline";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 
 type Props = {
-  file: VideoFileData;
+  file: VideoFileDataState;
 };
 
 export const DraggableVideoItem = ({ file }: Props) => {

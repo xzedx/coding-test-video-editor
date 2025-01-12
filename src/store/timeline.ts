@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
 export type State = {
-  videoFiles: VideoFileData[];
+  videoFiles: VideoFileDataState[];
   draggingClipId: UniqueIdentifier | null;
   pixelsPerSecond: number;
   activeClipId: string | null;
@@ -13,7 +13,7 @@ export type State = {
   clips: ClipState[];
 };
 
-export type VideoFileData = {
+export type VideoFileDataState = {
   id: string;
   file: File;
   coverImage: string;
@@ -32,23 +32,23 @@ export type ClipState = {
   offsetTime: number;
   startClipTime: number;
   endClipTime: number;
-  thumbnails?: Thumbnail[];
+  thumbnails?: ThumbnailState[];
 };
 
-export type Thumbnail = {
+export type ThumbnailState = {
   time: number;
   url: string;
 };
 
 type Actions = {
-  addVideoFiles: (file: VideoFileData[]) => void;
+  addVideoFiles: (file: VideoFileDataState[]) => void;
   setDraggingClipId: (id: UniqueIdentifier | null) => void;
   setActiveClipId: (id: string | null) => void;
   addTrack: (index: string) => string;
   addClip: (
     trackId: string,
     fileId: string,
-    thumbnails?: Thumbnail[]
+    thumbnails?: ThumbnailState[]
   ) => string;
   updateClip: (id: string, clip: Partial<ClipState>) => void;
   cleanupTracks: () => void;
@@ -76,7 +76,7 @@ export const useTimelineStore = create<State & Actions>()(
         endClipTime: 10,
       },
     ],
-    addClip: (trackId, fileId, thumbnails?: Thumbnail[]) => {
+    addClip: (trackId, fileId, thumbnails?: ThumbnailState[]) => {
       let newClip: ClipState;
       const clipId = Math.random().toString(36).slice(2, 10);
       set((state) => {
@@ -101,7 +101,7 @@ export const useTimelineStore = create<State & Actions>()(
       });
       return clipId;
     },
-    addVideoFiles: async (files: VideoFileData[]) => {
+    addVideoFiles: async (files: VideoFileDataState[]) => {
       set((state) => ({
         ...state,
         videoFiles: state.videoFiles.concat(files),
