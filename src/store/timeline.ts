@@ -5,15 +5,19 @@ import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
 export type State = {
-  videoFiles: {
-    file: File;
-    coverImage?: string;
-  }[];
+  videoFiles: VideoFileData[];
   draggingClipId: UniqueIdentifier | null;
   pixelsPerSecond: number;
   activeClipId: string | null;
   tracks: TrackState[];
   clips: ClipState[];
+};
+
+export type VideoFileData = {
+  id: string;
+  file: File;
+  coverImage: string;
+  duration: number;
 };
 
 export type TrackState = {
@@ -22,18 +26,30 @@ export type TrackState = {
 
 export type ClipState = {
   id: string;
+  loadingThumbnails?: boolean;
   trackId: string;
   duration: number;
   offsetTime: number;
   startClipTime: number;
   endClipTime: number;
+  thumbnails?: Thumbnail[];
+};
+
+export type Thumbnail = {
+  time: number;
+  url: string;
 };
 
 type Actions = {
-  addVideoFiles: (file: File[]) => void;
+  addVideoFiles: (file: VideoFileData[]) => void;
   setDraggingClipId: (id: UniqueIdentifier | null) => void;
   setActiveClipId: (id: string | null) => void;
   addTrack: (index: string) => string;
+  addClip: (
+    trackId: string,
+    fileId: string,
+    thumbnails?: Thumbnail[]
+  ) => string;
   updateClip: (id: string, clip: Partial<ClipState>) => void;
   cleanupTracks: () => void;
 };
@@ -50,11 +66,45 @@ export const useTimelineStore = create<State & Actions>()(
         id: "0",
       },
     ],
-    clips: [],
-    addVideoFiles: (files: File[]) => {
+    clips: [
+      {
+        id: "0",
+        trackId: "0",
+        duration: 10,
+        offsetTime: 0,
+        startClipTime: 0,
+        endClipTime: 10,
+      },
+    ],
+    addClip: (trackId, fileId, thumbnails?: Thumbnail[]) => {
+      let newClip: ClipState;
+      const clipId = Math.random().toString(36).slice(2, 10);
+      set((state) => {
+        const videoFile = state.videoFiles.find((f) => f.id === fileId);
+        if (!videoFile) return state;
+
+        newClip = {
+          id: clipId,
+          trackId,
+          duration: videoFile.duration,
+          offsetTime: 0,
+          startClipTime: 0,
+          endClipTime: videoFile.duration,
+          thumbnails,
+          loadingThumbnails: true,
+        };
+
+        return {
+          ...state,
+          clips: state.clips.concat(newClip),
+        };
+      });
+      return clipId;
+    },
+    addVideoFiles: async (files: VideoFileData[]) => {
       set((state) => ({
         ...state,
-        videoFiles: state.videoFiles.concat(files.map((file) => ({ file }))),
+        videoFiles: state.videoFiles.concat(files),
       }));
     },
     setDraggingClipId: (id: UniqueIdentifier | null) => {
@@ -69,12 +119,11 @@ export const useTimelineStore = create<State & Actions>()(
         activeClipId: id,
       }));
     },
+
     addTrack: (index) => {
       const newTrack = {
-        id: Math.random().toString(36).slice(2, 10), //TODO
+        id: Math.random().toString(36).slice(2, 10),
       };
-
-      console.log("!", index);
 
       set((state) => ({
         ...state,

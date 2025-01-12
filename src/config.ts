@@ -1,1 +1,1 @@
-export const pixelsPerSecond = 50;
+export const pixelsPerSecond = 100;

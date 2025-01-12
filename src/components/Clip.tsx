@@ -131,12 +131,16 @@ export const Clip = forwardRef<HTMLDivElement, Props>(
         {...attributes}
         {...listener}
       >
-        <div className="w-full h-full" ref={containerRef}></div>
+        <div className="w-full h-full flex" ref={containerRef}>
+          {data.loadingThumbnails && "加载中.."}
+          {data.thumbnails?.map((t) => (
+            <div key={`thumb-${t.time}`}>
+              <img className="w-full h-full object-cover" src={t.url}></img>
+            </div>
+          ))}
+        </div>
         {isActive && (
           <>
-            <div className="pointer-events-none select-none text-xs">
-              {JSON.stringify({ isResizing })}
-            </div>
             <div
               className="w-2 h-1/2 bg-red-600 absolute top-1/2 -left-2 -translate-y-1/2 rounded cursor-col-resize"
               onPointerDown={(e) => {

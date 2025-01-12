@@ -2,15 +2,31 @@ import { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { UploadCloud } from "lucide-react";
 import { useTimelineStore } from "@/store/timeline";
+import { DraggableVideoItem } from "./DraggableVideoItem";
+import { useFFmpeg } from "@/hooks/useFFmpeg";
+import { getVideoCoverImage, getVideoDuration } from "@/lib/utils";
 
 export function VideoDropzone() {
   const { videoFiles, addVideoFiles } = useTimelineStore();
+  const { ffmpegRef } = useFFmpeg();
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    addVideoFiles(acceptedFiles);
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    const filesData = await Promise.all(
+      acceptedFiles.map(async (file) => {
+        const duration = await getVideoDuration(ffmpegRef.current, file);
+        const coverImage = await getVideoCoverImage(ffmpegRef.current, file);
+        return {
+          id: Math.random().toString(36).slice(2, 10),
+          file,
+          coverImage,
+          duration,
+        };
+      })
+    );
+    addVideoFiles(filesData);
   }, []);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps } = useDropzone({
     onDrop,
     accept: {
       "video/mp4": [".mp4"],
@@ -20,7 +36,7 @@ export function VideoDropzone() {
   });
 
   return (
-    <div className="h-full border-r-2 border-gray-300 bg-gray-50">
+    <div className="h-full border-r border-gray-300 bg-gray-50">
       <div {...getRootProps()} className="h-full">
         {videoFiles.length === 0 && (
           <label className="relative flex w-full h-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 py-6">
@@ -37,7 +53,7 @@ export function VideoDropzone() {
         )}
         <div className="grid grid-cols-2 gap-2 p-2">
           {videoFiles.map((file) => (
-            <div key={file.name}></div>
+            <DraggableVideoItem key={file.file.name} file={file} />
           ))}
         </div>
       </div>
